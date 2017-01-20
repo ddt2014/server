@@ -1,25 +1,54 @@
 #include "server.h"
 
-DWORD WINAPI ClientThread(LPVOID ipParameter)
-{
-	SOCKET ClientScoket = (SOCKET)ipParameter;
+DWORD WINAPI SERVER :: recieveThread(void* server) {
+	SERVER sv = *((SERVER *)server);
 	int RET = 0;
-	char RecvBuffer[BUFFER_LENGTH];
+	char recvBuffer[BUFFER_LENGTH];
+
 	//init recvBuffer 
 	while (true) {
-		memset(RecvBuffer, 0x00, sizeof(RecvBuffer));
-		RET = recv(ClientScoket, RecvBuffer, BUFFER_LENGTH, 0);
-		if (RET == 0 || RET == SOCKET_ERROR)
-		{
-			cout << "failed,exit" << endl;
+		memset(recvBuffer, 0x00, sizeof(recvBuffer));
+		RET = recv(sv.clientScoket, recvBuffer, BUFFER_LENGTH, 0);
+		if (RET == 0 || RET == SOCKET_ERROR) {
+			cout << "message recieve failed" << endl;
 			break;
 		}
-		cout << "接受的消息为" << RecvBuffer << endl;
+		cout << "message from camera " << sv.getID() + 1 << ": " << recvBuffer << endl;
+		if (strcmp(recvBuffer, "starting transfer file") == 0) {
+			memset(recvBuffer, 0x00, sizeof(recvBuffer));
+			RET = recv(sv.clientScoket, recvBuffer, BUFFER_LENGTH, 0);
+			if (RET == 0 || RET == SOCKET_ERROR) {
+				cout << "file recieve failed" << endl;
+				break;
+			}
+			string fileName(recvBuffer);
+			fileName = "./" +  fileName;
+			cout << "start transfer file : " << fileName << endl;
+			FILE * fp = fopen(fileName.c_str(), "wb");
+			if (NULL == fp) {
+				cout << "open file faild " << fileName << endl;
+				break;
+			}
+			while (true){
+				memset(recvBuffer, 0x00, sizeof(recvBuffer));
+				RET = recv(sv.clientScoket, recvBuffer, BUFFER_LENGTH, 0);
+				if (RET == 0 || RET == SOCKET_ERROR) {
+					cout << "file recieve failed" << endl;
+					break;
+				}
+				if (strcmp(recvBuffer, "transfer over") == 0)
+					break;
+				fwrite(recvBuffer, sizeof(char), RET, fp);
+			}
+			cout << "transfer end" << endl;
+			fclose(fp);
+		}
 	}
 	return 0;
 }
 
-bool SERVER::initServer(int portNum, char* ipAddress) {
+bool SERVER:: initServer(const int portNum, const char* ipAddress, const int ID) {
+	cameraID = ID;
 	int ret;
 
 	//init windows socket
@@ -56,12 +85,8 @@ bool SERVER::initServer(int portNum, char* ipAddress) {
 		return false;
 	}
 
-	hThread = CreateThread(NULL, 0, ClientThread, (LPVOID)clientScoket, 0, NULL);
-	if (hThread == NULL)	{
-		cout << "creat thread failed" << endl;
-		return false;
-	}
 	ifReady = true;
+	cout << "camera " << cameraID + 1<< "ready." << endl;
 	return true;
 }
 
@@ -76,7 +101,6 @@ bool SERVER:: sendMessage(const char* message) {
 }
 
 SERVER:: ~SERVER() {
-	CloseHandle(hThread);
 	closesocket(severScoket);
 	closesocket(clientScoket);
 	WSACleanup();
@@ -84,4 +108,8 @@ SERVER:: ~SERVER() {
 
 bool SERVER::getState() {
 	return ifReady;
+}
+
+int SERVER::getID() {
+	return cameraID;
 }

@@ -16,13 +16,15 @@ private:
 	WSADATA     WSA;
 	SOCKET      severScoket, clientScoket;
 	struct      sockaddr_in  LocalAddr, clientAddr;
-	HANDLE hThread;
 	bool ifReady;
+	int cameraID;
 
 public:
-	SERVER(): hThread(NULL), ifReady(false){}
+	SERVER(): ifReady(false), cameraID(-1){}
 	~SERVER();
-	bool initServer(int portNum, char* ipAddress);
+	bool initServer(const int portNum, const char* ipAddress, const int ID);
 	bool sendMessage(const char* message);
 	bool getState();
+	int getID();
+	static DWORD WINAPI recieveThread(void* server);
 };
