@@ -1,28 +1,28 @@
 #include "server.h"
 
-DWORD WINAPI SERVER :: recieveThread(void* server) {
-	SERVER sv = *((SERVER *)server);
+DWORD WINAPI recieveThread(void* server) {
+	SERVER* sv = (SERVER *)server;
 	int RET = 0;
 	char recvBuffer[BUFFER_LENGTH];
 
 	//init recvBuffer 
 	while (true) {
 		memset(recvBuffer, 0x00, sizeof(recvBuffer));
-		RET = recv(sv.clientScoket, recvBuffer, BUFFER_LENGTH, 0);
+		RET = recv(sv->getClientScoket(), recvBuffer, BUFFER_LENGTH, 0);
 		if (RET == 0 || RET == SOCKET_ERROR) {
 			cout << "message recieve failed" << endl;
 			break;
 		}
-		cout << "message from camera " << sv.getID() + 1 << ": " << recvBuffer << endl;
+		cout << "message from camera " << sv->getID() + 1 << ": " << recvBuffer << endl;
 		if (strcmp(recvBuffer, "starting transfer file") == 0) {
 			memset(recvBuffer, 0x00, sizeof(recvBuffer));
-			RET = recv(sv.clientScoket, recvBuffer, BUFFER_LENGTH, 0);
+			RET = recv(sv->getClientScoket(), recvBuffer, BUFFER_LENGTH, 0);
 			if (RET == 0 || RET == SOCKET_ERROR) {
 				cout << "file recieve failed" << endl;
 				break;
 			}
 			string fileName(recvBuffer);
-			fileName = "./" +  fileName;
+			fileName = "./" + fileName;
 			cout << "start transfer file : " << fileName << endl;
 			FILE * fp = fopen(fileName.c_str(), "wb");
 			if (NULL == fp) {
@@ -31,7 +31,7 @@ DWORD WINAPI SERVER :: recieveThread(void* server) {
 			}
 			while (true){
 				memset(recvBuffer, 0x00, sizeof(recvBuffer));
-				RET = recv(sv.clientScoket, recvBuffer, BUFFER_LENGTH, 0);
+				RET = recv(sv->getClientScoket(), recvBuffer, BUFFER_LENGTH, 0);
 				if (RET == 0 || RET == SOCKET_ERROR) {
 					cout << "file recieve failed" << endl;
 					break;
@@ -40,6 +40,7 @@ DWORD WINAPI SERVER :: recieveThread(void* server) {
 					break;
 				fwrite(recvBuffer, sizeof(char), RET, fp);
 			}
+			sv->setSaveFileName(fileName);
 			cout << "transfer end" << endl;
 			fclose(fp);
 		}
@@ -85,8 +86,15 @@ bool SERVER:: initServer(const int portNum, const char* ipAddress, const int ID)
 		return false;
 	}
 
+	HANDLE hThread = NULL;
+	hThread = CreateThread(NULL, 0, recieveThread, this, 0, NULL);
+	if (hThread == NULL) {
+		cout << "creat thread failed" << endl;
+		return -1;
+	}
+
 	ifReady = true;
-	cout << "camera " << cameraID + 1<< "ready." << endl;
+	cout << "camera " << cameraID + 1<< " ready." << endl;
 	return true;
 }
 
@@ -106,10 +114,11 @@ SERVER:: ~SERVER() {
 	WSACleanup();
 }
 
-bool SERVER::getState() {
-	return ifReady;
+void SERVER ::setSaveFileName(string fn) {
+	fileName = fn;
+	fileFlag = true;
 }
 
-int SERVER::getID() {
-	return cameraID;
+void SERVER::readSaveImage() {
+	image.fileConvert(fileName);
 }

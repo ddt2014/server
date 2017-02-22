@@ -5,6 +5,7 @@
 #include <winsock2.h>
 #include <iostream>
 #include <string>
+#include "image.h"
 #pragma comment(lib, "ws2_32.lib")
 
 using namespace std;
@@ -18,13 +19,20 @@ private:
 	struct      sockaddr_in  LocalAddr, clientAddr;
 	bool ifReady;
 	int cameraID;
+	IMAGE image;
+	string fileName;
+	bool fileFlag;
 
 public:
-	SERVER(): ifReady(false), cameraID(-1){}
+	SERVER(): ifReady(false), cameraID(-1), fileFlag(false){}
 	~SERVER();
 	bool initServer(const int portNum, const char* ipAddress, const int ID);
 	bool sendMessage(const char* message);
-	bool getState();
-	int getID();
-	static DWORD WINAPI recieveThread(void* server);
+	bool getState() { return ifReady; }
+	int getID() { return cameraID; }
+	bool getFileState() { return fileFlag; }
+	SOCKET getClientScoket() { return clientScoket; }
+	void setSaveFileName(string fn);
+	void readSaveImage();
+	IMAGE getImage() { return image; }
 };
