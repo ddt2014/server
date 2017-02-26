@@ -1,5 +1,9 @@
 #include "server.h"
 
+SERVER::SERVER() : ifReady(false), cameraID(-1), fileFlag(false) {
+	image = new IMAGE();
+}
+
 DWORD WINAPI recieveThread(void* server) {
 	SERVER* sv = (SERVER *)server;
 	int RET = 0;
@@ -22,7 +26,7 @@ DWORD WINAPI recieveThread(void* server) {
 				break;
 			}
 			string fileName(recvBuffer);
-			fileName = "./" + fileName;
+			fileName = "./" + to_string(sv->getID() + 1) + "/" + fileName;
 			cout << "start transfer file : " << fileName << endl;
 			FILE * fp = fopen(fileName.c_str(), "wb");
 			if (NULL == fp) {
@@ -90,7 +94,7 @@ bool SERVER:: initServer(const int portNum, const char* ipAddress, const int ID)
 	hThread = CreateThread(NULL, 0, recieveThread, this, 0, NULL);
 	if (hThread == NULL) {
 		cout << "creat thread failed" << endl;
-		return -1;
+		return false;
 	}
 
 	ifReady = true;
@@ -120,5 +124,14 @@ void SERVER ::setSaveFileName(string fn) {
 }
 
 void SERVER::readSaveImage() {
-	image.fileConvert(fileName);
+	if (!fileName.empty()) {
+		image->setFileName(fileName);
+		image->fileConvert();
+	}
+}
+
+void SERVER :: clearTransState() {
+	fileFlag = false; 
+	fileName.clear();
+	image->clearState();
 }

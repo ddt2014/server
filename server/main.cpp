@@ -1,17 +1,23 @@
+#pragma once 
+
 #include <iostream>
 #include <string>
 #include "server.h"
 #include "image.h"
+//#include <WinBase.h>
 
 #define PORT 44960
 #define IP_ADDRESS "192.168.1.100"
 #define CAMERANUM 2
+#define SYNTIMES 5
+#define TOTALLIGHTNUM 10
 
 using namespace std;
 
-void cvShowManyImages(SERVER server[]) {
+void cvShowManyImages(SERVER server[], const vector<vector<int> > diffRes) {
 	IplImage *DispImage;
-	int scale = 2.0;
+	int scale = 2, temp;
+	string text;
 
 	// Create a new 3 channel image0  
 	DispImage = cvCreateImage(cvSize(100 + VIDEO_WIDTH / scale * 2, 60 + VIDEO_HEIGHT / scale * 2), 8, 3);
@@ -22,26 +28,59 @@ void cvShowManyImages(SERVER server[]) {
 		m += (i % 2) * (VIDEO_WIDTH / scale + 30);
 		n += (i / 2) * (VIDEO_HEIGHT / scale + 30);
 		cvSetImageROI(DispImage, cvRect(m, n, (int)(VIDEO_WIDTH / scale), (int)(VIDEO_HEIGHT / scale)));
-		cvResize(server[i].getImage().src, DispImage);
+		cvResize(server[i].getImage()->getSrc(), DispImage);
 		cvResetImageROI(DispImage);
+	}
+	cvResetImageROI(DispImage);
+
+	for (int i = 0; i < CAMERANUM - 1; ++i) {
+		text = "Time difference betweent camera 1 and camera " + to_string(i + 2) + " : ";
+		cvText(DispImage, text, cvPoint(300, 100 * i + VIDEO_HEIGHT / scale), cvScalar(0, 0, 255));
+		for (int j = 0; j < SYNTIMES; ++j) {
+			text = to_string(diffRes[i][j]);
+			cvText(DispImage, text, cvPoint(810, 100 * i + 20 * j + VIDEO_HEIGHT / scale), cvScalar(0, 0, 255));
+			temp = diffRes[i][j] % TOTALLIGHTNUM;
+			if (temp < 0)
+				temp += TOTALLIGHTNUM;
+			text = to_string(temp);
+			cvText(DispImage, text, cvPoint(860, 100 * i + 20 * j + VIDEO_HEIGHT / scale), cvScalar(0, 0, 255));
+		}
 	}
 
 	cvShowImage("image", DispImage);
-	//cvWaitKey(0);
+	cvWaitKey(0);
 	cvReleaseImage(&DispImage);
 }
 
-void showSaveFiles(SERVER server[]) {
+void calDiffRes(SERVER server[], vector<vector<CvPoint> > locateionPoints, vector<vector<int> >& diffRes, int count) {
 	for (int i = 0; i < CAMERANUM; ++i) {
 		server[i].readSaveImage();
+		server[i].getImage()->findLED(locateionPoints[i]);
+		if (i > 0) {
+			diffRes[i - 1][count] = (server[0].getImage()->getTakeTime() - server[i].getImage()->getTakeTime());
+		}
 	}
-	cvShowManyImages(server);
+	if (count == SYNTIMES - 1)
+		return;
+	for (int i = 0; i < CAMERANUM; ++i) {
+		server[i].clearTransState();
+	}
 }
 
 int main(void) {
 	SERVER server[CAMERANUM];
 	bool flag;
 	string command;
+	cvNamedWindow("image");
+	vector<vector<CvPoint> > locateionPoints(CAMERANUM, vector<CvPoint>(3));
+	vector<vector<int> > diffRes(CAMERANUM - 1, vector<int>(SYNTIMES));
+
+	locateionPoints[0][0] = cvPoint(597, 66);
+	locateionPoints[0][1] = cvPoint(413, 67);
+	locateionPoints[0][2] = cvPoint(413, 248);
+	locateionPoints[1][0] = cvPoint(673, 168);
+	locateionPoints[1][1] = cvPoint(493, 169);
+	locateionPoints[1][2] = cvPoint(494, 347);
 
 	for (int i = 0; i < CAMERANUM; ++i) {
 		flag = server[i].initServer(PORT + i * 2, IP_ADDRESS, i);
@@ -59,21 +98,28 @@ int main(void) {
 	cout << "save picture: p \t save video: v-123" << endl;
 	cout << "synchronize: y \t transfer file: f" << endl;
 	cout << "change shutter speed us: h-20000 \t change FPS c-fps-frame: c-25-100" << endl;
-	cout << "save picture: p \t save video: v-123" << endl;
+	cout << "start camera: s \t stop camera: t" << endl;
 	while (true) {
 		cin >> command;
-		for (int i = 0; i < CAMERANUM; ++i) {
-			server[i].sendMessage(command.c_str());
-		}
 		if (command == "y") {
-			do {
-				flag = true;
+			for (int t = 0; t < SYNTIMES; ++t) {
 				for (int i = 0; i < CAMERANUM; ++i) {
-					flag = flag & server[i].getFileState();
+					server[i].sendMessage(command.c_str());
 				}
-			}while (!flag); 
-			showSaveFiles(server);
+				do {
+					flag = true;
+					for (int i = 0; i < CAMERANUM; ++i) {
+						flag = flag & server[i].getFileState();
+					}
+				} while (!flag);
+				calDiffRes(server, locateionPoints, diffRes, t);
+			}
+			cvShowManyImages(server, diffRes);
+			continue;
 		}
+		//for (int i = 0; i < CAMERANUM; ++i) {
+		//	server[i].sendMessage(command.c_str());
+		//}
 	}
 	return 0;
 }
