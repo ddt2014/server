@@ -40,6 +40,8 @@ DWORD WINAPI recieveThread(void* server) {
 					cout << "file recieve failed" << endl;
 					break;
 				}
+				//printf("%s", recvBuffer);
+				//cout << endl << endl << endl;
 				if (strcmp(recvBuffer, "transfer over") == 0)
 					break;
 				fwrite(recvBuffer, sizeof(char), RET, fp);
@@ -52,6 +54,7 @@ DWORD WINAPI recieveThread(void* server) {
 	return 0;
 }
 
+
 bool SERVER:: initServer(const int portNum, const char* ipAddress, const int ID) {
 	cameraID = ID;
 	int ret;
@@ -62,7 +65,7 @@ bool SERVER:: initServer(const int portNum, const char* ipAddress, const int ID)
 		return false;
 	}
 	//creat socket
-	severScoket = socket(AF_INET, SOCK_STREAM, 0);
+	severScoket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (severScoket == INVALID_SOCKET){
 		cout << "creat failed" << GetLastError() << endl;
 		return false;
@@ -130,8 +133,11 @@ void SERVER::readSaveImage() {
 	}
 }
 
-void SERVER :: clearTransState() {
-	fileFlag = false; 
+void SERVER::clearFileState() {
 	fileName.clear();
 	image->clearState();
+}
+
+void SERVER::clearTransState() {
+	fileFlag = false;
 }

@@ -43,13 +43,18 @@ void cvShowManyImages(SERVER server[], const vector<vector<int> > diffRes) {
 			if (temp < 0)
 				temp += TOTALLIGHTNUM;
 			text = to_string(temp);
-			cvText(DispImage, text, cvPoint(860, 100 * i + 20 * j + VIDEO_HEIGHT / scale), cvScalar(0, 0, 255));
+			cvText(DispImage, text, cvPoint(880, 100 * i + 20 * j + VIDEO_HEIGHT / scale), cvScalar(0, 0, 255));
 		}
+	}
+
+	for (int i = 0; i < CAMERANUM; ++i) {
+		server[i].clearFileState();
 	}
 
 	cvShowImage("image", DispImage);
 	cvWaitKey(0);
 	cvReleaseImage(&DispImage);
+	cvDestroyWindow("image");
 }
 
 void calDiffRes(SERVER server[], vector<vector<CvPoint> > locateionPoints, vector<vector<int> >& diffRes, int count) {
@@ -63,7 +68,7 @@ void calDiffRes(SERVER server[], vector<vector<CvPoint> > locateionPoints, vecto
 	if (count == SYNTIMES - 1)
 		return;
 	for (int i = 0; i < CAMERANUM; ++i) {
-		server[i].clearTransState();
+		server[i].clearFileState();
 	}
 }
 
@@ -75,12 +80,12 @@ int main(void) {
 	vector<vector<CvPoint> > locateionPoints(CAMERANUM, vector<CvPoint>(3));
 	vector<vector<int> > diffRes(CAMERANUM - 1, vector<int>(SYNTIMES));
 
-	locateionPoints[0][0] = cvPoint(597, 66);
-	locateionPoints[0][1] = cvPoint(413, 67);
-	locateionPoints[0][2] = cvPoint(413, 248);
+	locateionPoints[0][0] = cvPoint(597, 70);
+	locateionPoints[0][1] = cvPoint(410, 67);
+	locateionPoints[0][2] = cvPoint(408, 253);
 	locateionPoints[1][0] = cvPoint(673, 168);
-	locateionPoints[1][1] = cvPoint(493, 169);
-	locateionPoints[1][2] = cvPoint(494, 347);
+	locateionPoints[1][1] = cvPoint(491, 169);
+	locateionPoints[1][2] = cvPoint(490, 353);
 
 	for (int i = 0; i < CAMERANUM; ++i) {
 		flag = server[i].initServer(PORT + i * 2, IP_ADDRESS, i);
@@ -112,14 +117,19 @@ int main(void) {
 						flag = flag & server[i].getFileState();
 					}
 				} while (!flag);
+				for (int i = 0; i < CAMERANUM; ++i) {
+					server[i].clearTransState();
+				}
 				calDiffRes(server, locateionPoints, diffRes, t);
 			}
 			cvShowManyImages(server, diffRes);
 			continue;
 		}
-		//for (int i = 0; i < CAMERANUM; ++i) {
-		//	server[i].sendMessage(command.c_str());
-		//}
+		else {
+			for (int i = 0; i < CAMERANUM; ++i) {
+				server[i].sendMessage(command.c_str());
+			}
+		}
 	}
 	return 0;
 }

@@ -10,7 +10,7 @@
 
 using namespace std;
 
-#define BUFFER_LENGTH 2048
+#define BUFFER_LENGTH 1024
 
 class SERVER {
 private:
@@ -32,6 +32,7 @@ public:
 	int getID() { return cameraID; }
 	bool getFileState() { return fileFlag; }
 	void clearTransState();
+	void clearFileState();
 	SOCKET getClientScoket() { return clientScoket; }
 	void setSaveFileName(string fn);
 	void readSaveImage();

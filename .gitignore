@@ -28,6 +28,12 @@ $RECYCLE.BIN/
 .AppleDouble
 .LSOverride
 
+*.raw
+
+Debug
+1
+2
+
 # Thumbnails
 ._*
 
